@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
-import React from 'react';
-import electron from 'electron';
+import React, { useRef, useState } from 'react';
+import {ipcRenderer} from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import DbSession from '../../sessions/DbSession';
 import PgSession from '../../sessions/PgSession';
@@ -15,10 +15,11 @@ const Login: React.FC<LoginProps> = ({ setSession }: LoginProps) => {
   const [connectionString, setConnectionString] = React.useState<string>(
     'postgresql://postgres:postgrespassword@127.0.0.1/postgres'
   );
+  const isWindowInitFinished = useRef(false);
   const [loading, setLoading] = React.useState<boolean>(false);
 
   React.useEffect(() => {
-    electron.ipcRenderer.on('CONNECT_RESP', (_, params) => {
+    ipcRenderer.on('CONNECT_RESP', (_, params) => {
       setLoading(false);
       if (params?.status === 'CONNECTED') {
         console.log('CONNECTED', params);
@@ -26,6 +27,13 @@ const Login: React.FC<LoginProps> = ({ setSession }: LoginProps) => {
       }
       // TODO else show error message
     });
+
+    //listen for initialize message for did-finish-load
+    ipcRenderer.on('INITIALIZE', (event, args)=>{
+      console.log('DID-FINISH-LOAD :', event, args);
+      isWindowInitFinished.current = true;
+    })
+
   }, []);
   const send = () => {
     console.log('>>');
@@ -33,11 +41,15 @@ const Login: React.FC<LoginProps> = ({ setSession }: LoginProps) => {
 
     if (connectionString) {
       setLoading(true);
-      electron.ipcRenderer.send(
-        'connect',
-        { connectionString, uuid: uuidv4() },
-        10
-      );
+
+      // only send after the did-finish-load event
+      if(isWindowInitFinished.current){
+        ipcRenderer.send(
+          'connect',
+          { connectionString, uuid: uuidv4() },
+          10
+        );
+      }
     }
   };
   return (

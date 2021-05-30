@@ -94,6 +94,10 @@ const createWindow = async () => {
       mainWindow.show();
       mainWindow.focus();
     }
+
+    //sent an initializer
+    mainWindow.webContents.send('INITIALIZE');
+
   });
 
   mainWindow.on('closed', () => {
